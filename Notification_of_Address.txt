@@ -1,0 +1,93 @@
+Notification of Address
+Functional Description
+Introduction
+•	Legacy systems notifications will be processed by Database batch processes.
+•	Database will accept notifications from both legacy and non-legacy systems.
+Purpose
+•	Database release 2 will receive T008 Address Notification .
+•	Describes the process, data, and tables modified by this notification.
+•	Changes in DATABASE data will trigger outbound broadcasts to other systems.
+•	Outbound broadcasts represent the 'final picture' of data for that day.
+•	Duplicate notifications of the same data on the same day will not trigger broadcasts.
+•	Inbound notifications accepted from any system in the notification network.
+•	Batch job updates customer address records or ends them (creating a DLO status).
+•	QAS matching and de-duplication process performed on address records.
+Process
+Validation Rules	Description
+Notifications must have correct format.	Validate NI Number.
+Data must be complete and correct.	Check address formatting, avoid duplicates, valid words.
+Invalid data will be rejected.	Verify address start/end dates, consecutive punctuation.
+•	Address type defaults to Permanent Residential.
+•	Customer role key defaults to default DATABASE Role.
+•	Address status type defaults based on notification content.
+Rejection Code	Rejection Rules	Description	Rejection Title
+3000	Account id not on DATABASE	ID not found or deleted on DATABASE.	Non-Match On ID
+3002	Superseded ccounta	NNO in file is Superseded on DATABASE.	Non-Match On Current ID
+3014	Special Characters in Address	Special characters found in address lines.	Invalid Address Characters
+3015	Duplicate Data in Address	Duplicate data found in address lines.	Duplicate Address Lines
+3016	Invalid Word in Address	Invalid words found in address lines.	Invalid Word in Address
+3018	Consecutive Punctuation	Consecutive punctuation characters found.	-
+3021	Address Line 4 Dependency	Address Line 4 populated without Line 3.	-
+3017	Future Address Start Date	Start date cannot be in the future.	-
+3020	Address End Before Start	End date cannot be before start date.	-
+•	Failed validations result in record rejection.
+•	No rejection message sent back to source system.
+•	Rejected records managed by Application Live Support Team.
+Matching and De-duplication
+•	Initial Matching: Compare incoming addresses with DATABASE records.
+•	Create new records for non-matching addresses.
+•	Update CUSTOMER_ADDRESS table for matched addresses.
+•	QAS Process: Clean up new addresses and remove duplicates.
+•	Assign appropriate FAX_CODE_TYPE based on address type.
+•	Foreign addresses assigned specific FAX_CODE_TYPE.
+Update Process
+•	Update ADDRESS and CUSTOMER_ADDRESS tables with file data.
+•	Populate fields based on input file and technical audit data.
+Address Matching and Insertion Rules
+Step	Description
+1.3.15	Match on first 7 characters of line 1, first 6 characters of line 2, and Pincode for an exact match.
+1.3.16	Incoming file with null end date is processed.
+1.3.17	Compare address lines and Pincode with ADDRESS table.
+1.3.18	If fields match exactly with a PAF compliant address, no new address is created.
+1.3.19	If fields do not match exactly or match with a Non-PAF Compliant address, a new address is created.
+1.3.20	For matched records, no new entries are added to the ADDRESS table.
+1.3.21	For unmatched records, new entries are inserted into the ADDRESS table with specific conditions.
+
+Conditions for Inserting Records into ADDRESS Table:
+Table	Column	Change	Condition
+ADDRESS	Address_Key	Insert	Unique Random Number generated for address key
+ADDRESS	Address_Line_1	Insert	Valid address line
+ADDRESS	Address_Line_2	Insert	Valid address line
+ADDRESS	Address_Line_3	Insert	Valid address line
+ADDRESS	Address_Line_4	Insert	Valid address line
+ADDRESS	Pincode	Insert	Valid Pincode
+ADDRESS	Country	Insert	Valid Country
+ADDRESS	Address_start_date	Insert	Valid date (format DDMMYYYY)
+•	The above table has the rules and conditions for matching addresses and inserting new records into the ADDRESS table based on the incoming T008 address notifications.
+Initial Matching Rules (Incoming File where End Date is not null)
+Step	Description
+1.3.22	Incoming T008 address notifications are examined.
+1.3.23	Address Line 1, Address Line 2, and Pincode are compared with ADDRESS table fields.
+1.3.24	If fields match exactly with PAF or Non-PAF compliant address, no new address is created.
+1.3.25	If fields do not match exactly, notification file is dropped without exceptions.
+Update of Customer Address
+
+Step	Description
+1.3.26	Update of Customer Address begins.
+1.3.27	For matched records, check against CUSTOMER ADDRESS table. Update if customer's current open RESIDENTIAL address matches the incoming file. Otherwise, file is not processed without warnings or exceptions.
+1.3.28	Once ADDRESS table is populated, update CUSTOMER_ADDRESS table.
+Conditions for Updating CUSTOMER_ADDRESS Table:
+
+Table	Column	Change	Condition
+CUSTOMER_ADDRESS	Address_Key	Update	Points to correct address in ADDRESS table
+CUSTOMER_ADDRESS	Cust_Addr_Start_Date	Update	Valid date
+CUSTOMER_ADDRESS	Cust_Addr_End_Date	Update	NULL (if address not ended) or valid date (if address ended)
+CUSTOMER_ADDRESS	Address_Status_Type	Insert	0 (if address is ended, indicating Dead Letter Office)
+Notes:
+•	No insertion of address data into Address Lines 2-5 on CUSTOMER_ADDRESS table.
+•	For non-PAF compliant addresses, certain fields on CUSTOMER_ADDRESS table remain empty.
+•	Triggers update address trace fields with appropriate values for PAF compliant addresses during table update.
+QAS Process and De-duplication
+•	QAS module runs against new entries in ADDRESS table after CUSTOMER_ADDRESS update.
+•	QAS module removes newly created addresses that match existing database addresses, updates CUSTOMER_ADDRESS table to point to original database address.
+

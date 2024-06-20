@@ -1,0 +1,54 @@
+Functional Design Document for Interests Data Purge
+
+Document author: XYZ
+ Version: 1.0
+Publication date: 12 Jun 2024
+Status: Baselined
+
+ 
+1. Introduction and Purpose
+1.1.	Introduction
+This document outlines the functional design for the data purge process to be implemented within our system. The focus is on purging outdated interest details from the database to maintain data relevancy and comply with data retention policies. The purpose of this process is to ensure that all data that exceed the defined retention period are systematically and efficiently removed from the database.
+1.2 Purpose
+The primary purpose of this functional design document is to establish clear guidelines and mechanisms for identifying and purging data related to interest details that are older than the specified retention period. This process aims to optimize database performance, reduce storage costs, and ensure compliance with data governance and retention policies.
+
+2. Purge Rules
+2.1.	 Purge Data: Interest Details
+The data targeted for purging consists of all records related to interest details. This includes any data entries that fall under the category of 'interests' within the database.
+2.2.	 Retention Period
+The retention period for the interest details data is set at five years. Any data entries older than this period will be marked for purging.
+2.3.	 Running Frequency
+The purge process will be scheduled to run daily. This frequency ensures that outdated data is consistently and regularly removed from the system, maintaining up-to-date records.
+2.4.	 Purge Rule
+The primary rule for purging is that all data which is older than five years from the current date will be purged. This rule ensures that no relevant and recent data is deleted, only data that no longer serves a purpose and may potentially lead to data bloat.
+
+
+3. Process Mechanism
+3.1. Identification of Eligible Data
+The first step in the purge mechanism is to identify all data entries that are eligible for purging. The eligibility is based on the retention period rule:
+1.	Query for Data Older Than Five Years: A database query will be executed to select all records from the interest details table where the data entry date is older than five years from the current date.
+3.2. Purging of Identified Data
+Once the eligible data is identified, the next step is to purge these entries from the database:
+1.	Batch Deletion Process: To avoid performance issues, the deletion process will be carried out in batches. This approach ensures that the system remains responsive and avoids long-running transactions that could lock the database.
+3.3. Detailed Steps
+1.	Schedule Daily Job: A scheduled job will be set up to run the identification and purging process daily at a specified off-peak time to minimize the impact on system performance.
+o	The scheduler will trigger a script that performs the following steps.
+2.	Run Identification Query: Execute the query to find all interest details older than five years.
+o	Store the results in a temporary table for further processing, if needed.
+3.	Batch Purging:
+o	Begin a transaction.
+o	Delete a batch of identified records.
+o	Commit the transaction.
+o	Repeat until all eligible records are purged.
+4.	Logging and Monitoring:
+o	Log the start and end time of the purge process.
+o	Log the number of records purged in each batch.
+o	Monitor for any errors or exceptions during the process and handle them appropriately.
+Final Considerations
+•	Data Integrity: Ensure that the purge process does not compromise data integrity. All related records in different tables should be considered and purged accordingly to maintain referential integrity.
+•	Performance Optimization: Use indexes and efficient queries to minimize the impact on database performance.
+•	Audit and Compliance: Maintain an audit trail of purged records, including metadata and the number of records deleted. This ensures compliance with data retention policies and provides accountability.
+By following the guidelines and mechanisms outlined in this document, the system will effectively and efficiently manage the purging of outdated interest details, ensuring data relevancy and compliance with retention policies.
+
+
+

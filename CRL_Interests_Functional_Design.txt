@@ -1,0 +1,117 @@
+                  CRL Interests Functional Design
+1	Introduction
+
+1.1	Purpose of the document
+
+This document describes the functionality developed to receive CRL interests creation inbound notification. It defines the process carried out by this inbound transaction, describes the data contained within this inbound notification and outlines the tables and fields that this data will modify.
+
+A CRL Interests creation notification will insert a new record into INTERESTS table where the interest type is CRL.
+
+1.2	Process
+
+1.2.1	Initial file format validation will be performed on the inbound notification file’s Header. Please refer Appendix A for a complete description of the initial file format validation on the file’s header
+1.2.2	After validation of Header, a further initial file format validation will be performed on the CRL Interests creation file and will consists of the following:
+•	Record count must be 6
+•	The benefit type must be numeric and range between 01-99. 
+
+1.2.3	Where the record fails validation rules detailed in paragraphs 1.3.6 and 1.3.7, it will be rejected and not processed.
+1.2.4	After successfully passing file format validation, the following business rules validation will be performed on the incoming notification:
+
+REJECTION CODE	REJECTION RULES	DESCRIPTION
+2000	ID is not live account	The ID received on file is not held in the account.
+2001	ID is superseded	The ID received on file is superseded(it is no longer used)
+2013	ID had date of death	If the individual is dead the reject transaction with rejection code 2013
+2014	CSCS interests received but CS2 CRL interests already exists.	CSCS interests received but CS2 CRL interests already exists.
+
+
+1.2.5	Where a transaction fails the validation rules detailed in 1.2.4, it will be logged on to TXN_ALERTS table and reject message will be viewable.
+1.2.6	And when transaction pass with the validation rules, the CRL Interests creation notification will create a record on INTERESTS table. The following are the possible scenarios that CRL Interests creation notification can encounter.
+
+Scenario 1: The transaction is dropped if INTEREST exists for the record with interests type= CRL on INTERESTS table and INT_OFFICE_TYPE=71(maintained) on INTERESTED_PARTIES table.
+
+Scenario2:  If no CRL interest exists for the record on INTERESTS table then insert incoming INTERESTS and associated INTERESTED_PARTIES with details on the file. Please see the below tables for the data changes that occur for this scenario.
+
+INTERESTS table Insertion data:
+Table	Column	Change	Expected Value
+INTERESTS	BUSINESS_INTEREST_START_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTS	INTEREST_START_DATE_APPL_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTS	INTEREST_TYPE	Insert 	CRL=3 
+INTERESTS	DWP_SERVICE_KEY	Insert	Mapped Benefit Key that has been identified for the BENEFIT-TYPE input from the file. 
+INTERESTS	INTEREST_CHG_MD_DEP_ID	 Insert 	Sending department identifier (always defaulted to 1). 
+INTERESTS	CIS_LAST_APPLIED_DATE	Insert	System Date
+
+
+INTERESTED_PARTIES table Insertion data:
+
+Table	Column	Change	Expected Value
+INTERESTED_PARTIES	INT_OFFICE_TYPE	Insert	71 (maintained)
+INTERESTED_PARTIES	START_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTED_PARTIES	PARTY_START_DATE_APPL_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTED_PARTIES	DWP_BENEFIT_KEY	Insert	Mapped Benefit Key that has been identified for the BENEFIT-TYPE input from the file. 
+INTERESTED_PARTIES	DWP_BENEFIT_SERVICE_SYSTEM	Insert	The BENEFIT_TYPE is mapped to the DWP_SERVICE _KEY to find the parent code and then populate the DWP_BENEFIT_SERVICE_SYSTEM with that code.
+INTERESTED_PARTIES	PARTY_CHG_MD_DEPT_ID	Insert 	always defaulted to 1
+INTERESTED_PARTIES	SD_OFFICE_TYPE	Insert	Always defaulted to 1 
+INTERESTED_PARTIES	INTERESTS_TYPE	Insert 	CRL = 3
+INTERESTED_PARTIES	CIS_LAST_APPLIED_DATE	Insert 	System Date
+
+
+
+Scenario 3:  If INTEREST exists for the record with INTEREST_TYPE = CRL but INTEREST is closed, then Insert incoming INTEREST and associated INTERESTED¬_PARTIES with details from the file. Please see the tables below for the data changes that occur for this scenario.
+
+
+
+
+
+INTERESTS table Insertion data:
+Table	Column	Change	Expected Value
+INTERESTS	BUSINESS_INTEREST_START_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTS	INTEREST_START_DATE_APPL_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTS	INTEREST_TYPE	Insert 	CRL=3 
+INTERESTS	DWP_SERVICE_KEY	Insert	Mapped Benefit Key that has been identified for the BENEFIT-TYPE input from the file. 
+INTERESTS	INTEREST_CHG_MD_DEP_ID	 Insert 	Sending department identifier (always defaulted to 1). 
+INTERESTS	CIS_LAST_APPLIED_DATE	Insert	System Date
+
+
+INTERESTED_PARTIES table Insertion data:
+
+Table	Column	Change	Expected Value
+INTERESTED_PARTIES	INT_OFFICE_TYPE	Insert	71 (maintained)
+INTERESTED_PARTIES	START_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTED_PARTIES	PARTY_START_DATE_APPL_DATE	Insert	DATE-TIME-STAMP input from the input record header
+INTERESTED_PARTIES	DWP_BENEFIT_KEY	Insert	Mapped Benefit Key that has been identified for the BENEFIT-TYPE input from the file.
+INTERESTED_PARTIES	DWP_BENEFIT_SERVICE_SYSTEM	Insert	The BENEFIT_TYPE is mapped to the DWP_SERVICE _KEY to find the parent code and then populate the DWP_BENEFIT_SERVICE_SYSTEM with that code.
+INTERESTED_PARTIES	PARTY_CHG_MD_DEPT_ID	Insert 	always defaulted to 1
+INTERESTED_PARTIES	SD_OFFICE_TYPE	Insert	Always defaulted to 1 
+INTERESTED_PARTIES	INTERESTS_TYPE	Insert 	CRL = 3
+INTERESTED_PARTIES	CIS_LAST_APPLIED_DATE	Insert 	System Date
+
+
+
+1.2.7	Whenever CRL Interests creation is being processed, a check is performed to determine if the BENEFIT_TYPE is NTC. If the Benefit type is NTC (DCI Value 97, CDS Mapped value 69) then no CRL interest will be created for that record. These records will be ignored and will not be processed for creating interests.
+       No error will be logged or sent to SEF in respect of not processing NTC CRL Interests.
+      These records will be marked as processed i.e. ‘P’ for Processed Flag column in Staging Table for       purging as per BAU processes.
+
+1.3	Mapping
+ 
+1.3.1	This table illustrates mapping and transformation relationships that exist for incoming inbound   notifications and the subsequent update of customer record data on CIS.
+
+DCI Field	Table	CIS Column	Value mapping  (Y/N)
+BENEFIT_TYPE	INTERESTS	DWP_SERVICE_KEY	Y
+BENEFIT_TYPE	INTERESTED_PARTIES  	DWP_BENEFIT_KEY	Y
+
+2	Appendix A
+
+2.1.1	The table below explains the CRL interests creation inbound file format, the broadcast data is described in standard character and numeric representation. 
+
+Ref	Data Name	Data Type	Size
+1	RECORD_COUNT	C	5
+2	ID	C	8
+3	SURNAME	C	3
+4	INPUT_OFFICE_LOCATION_NUMBER	C	5
+5	DATE_STAMP	C	8
+6	TIME_STAMP	C	6
+7	TRANSACTION_COUNT	C	2
+8	RECORD_COUNT	C	5
+9	INPUT_NUMBER	C	4
+10	BENEFIT_TYPE	C	2
+
